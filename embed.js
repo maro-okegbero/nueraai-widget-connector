@@ -49,7 +49,7 @@ window.addEventListener("load", () => {
         // Put the box in the webpage.
         document.body.appendChild(p);
 
-    })("div", "edenai-message-iframe-container", "iframe", "https://phenomenal-swan-3de63a.netlify.app/", 'script', 'gh/maro-okegbero/nueraai-widget-connector');
+    })("div", "edenai-message-iframe-container", "iframe", "https://nuera-widget.pages.dev/", 'script', 'gh/maro-okegbero/nueraai-widget-connector');
     // The above line is where the function is called with specific values.
 
     // Part 2: Handling Messages from the iframe
@@ -79,7 +79,7 @@ window.addEventListener("load", () => {
             }
         }, false);
 
-    })("message", "https://phenomenal-swan-3de63a.netlify.app/", "edenai-message-iframe-container", "hide", "show", "662px", "333px", "670px", "400px");
+    })("message", "https://nuera-widget.pages.dev/", "edenai-message-iframe-container", "hide", "show", "662px", "333px", "670px", "400px");
     // The above line is where the function is called with specific values.
 
 });
