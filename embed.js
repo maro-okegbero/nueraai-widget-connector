@@ -1,85 +1,124 @@
-// This script does two main things: it creates a little box on a webpage
-// and communicates with that box to change its size.
+/**
+ * Nuera Widget Embed Script
+ * 
+ * This script initializes the Nuera widget on the host page.
+ * It creates an iframe container and handles communication between the host and the widget
+ * for resizing and toggling state.
+ */
 
-// Part 1: Creating and Injecting an iframe
+(function () {
+	// Configuration
+	// For local development, we point to index.html. 
+	// In production, this would be the full URL to where the widget is hosted.
+	var WIDGET_URL = 'https://nuera-widget.pages.dev';
+	var CONTAINER_ID = 'nuera-widget-container';
 
-// When the whole webpage finishes loading, do the following:
-window.addEventListener("load", () => {
+	// Dimensions map
+	var DIMS = {
+		CLOSED: { w: '120px', h: '120px' }, // Fits launcher (60px) + margins (24px)
+		OPEN_DESKTOP: { w: '420px', h: '800px' }, // Fits widget (380px) + margins (~400px total width)
+		OPEN_MOBILE: { w: '100%', h: '100%' }
+	};
 
-    // This function creates and injects an "iframe" into the webpage.
-    // An iframe is like a little window inside the webpage.
-    (function (s, i, f, o, l, n) {
+	// Prevent duplicate initialization
+	if (document.getElementById(CONTAINER_ID)) {
+		return;
+	}
 
-        // Find all script tags on the page.
-        let ss = document.getElementsByTagName(l);
+	// 1. Create the Container Div
+	var container = document.createElement('div');
+	container.id = CONTAINER_ID;
 
-        // Initialize an empty string to store a part of the script tag's source URL.
-        let qp = "";
+	// Apply base styles
+	// We use max-height/width to ensure it doesn't overflow viewport on small screens even in desktop mode
+	Object.assign(container.style, {
+		position: 'fixed',
+		bottom: '0',
+		right: '0',
+		width: DIMS.CLOSED.w,
+		height: DIMS.CLOSED.h,
+		border: 'none',
+		zIndex: '2147483647', // Max safe integer to sit on top of everything
+		background: 'transparent',
+		transition: 'none', // We let the internal iframe content handle animations usually, or we can animate dimensions here
+		maxHeight: '100vh',
+		maxWidth: '100vw',
+		pointerEvents: 'none' // Start with pointer-events none so the transparent box doesn't block clicks around the launcher
+	});
 
-        // Loop through each script tag to find the one related to the YodaBot.
-        for (const t of ss) {
-            if (t.src.indexOf(n) > -1 && t.src.indexOf('?') > -1) {
-                // If found, extract the part of the URL that comes after the "?".
-                qp = t.src.slice(t.src.indexOf('?'));
-                break;
-            }
-        }
+	// 2. Resolve Script Params (API Key, etc.)
+	// We look for the script tag that included this file to pass query params along
+	var scripts = document.getElementsByTagName('script');
+	var queryParams = '';
+	for (var i = 0; i < scripts.length; i++) {
+		var src = scripts[i].src;
+		if (src && (src.indexOf('embed.js') > -1 || src.indexOf('nuera-widget') > -1) && src.indexOf('?') > -1) {
+			queryParams = src.slice(src.indexOf('?'));
+			break;
+		}
+	}
 
-        // Create a new "div" element (a box in the webpage).
-        let p = document.createElement(s);
+	// 3. Create the Iframe
+	var iframe = document.createElement('iframe');
+	iframe.src = WIDGET_URL + queryParams;
 
-        // Set the id of the div element to "edenai-message-iframe-container".
-        p.id = i;
+	Object.assign(iframe.style, {
+		width: '100%',
+		height: '100%',
+		border: 'none',
+		colorScheme: 'normal',
+		pointerEvents: 'auto',
+		background: 'transparent' // Explicitly transparent
+	});
 
-        // Set some styles for the div element to make it look a certain way.
-        p.style = "position: fixed; z-index: 123456789; right: 10px; bottom: 0; height: 662px; width: 333px; min-height: 96px; min-width: 100px";
+	iframe.allow = "microphone; camera; autoplay; clipboard-write";
 
-        // Create a new "iframe" element (a little window inside the box).
-        let m = document.createElement(f);
+	container.appendChild(iframe);
+	document.body.appendChild(container);
 
-        // Set the source (URL) of the iframe by combining a base URL and the extracted part of the URL.
-        m.src = `${o}${qp}`;
+	// 4. Message Handling (Cross-Origin Communication)
+	window.addEventListener('message', function (event) {
+		// In production, you should verify event.origin here
+		if (event.origin !== 'https://nuera-widget.pages.dev') return;
 
-        // Set some styles for the iframe to make it fill the whole box.
-        m.style = "width: 100%; height: 100%; border: 0";
+		var action = event.data;
 
-        // Put the iframe inside the box.
-        p.appendChild(m);
+		// Handle specific actions
+		if (action === 'show' || (action && action.action === 'show')) {
+			// Determine if mobile
+			var isMobile = window.innerWidth <= 480;
 
-        // Put the box in the webpage.
-        document.body.appendChild(p);
+			container.style.width = isMobile ? DIMS.OPEN_MOBILE.w : DIMS.OPEN_DESKTOP.w;
+			container.style.height = isMobile ? DIMS.OPEN_MOBILE.h : DIMS.OPEN_DESKTOP.h;
 
-    })("div", "edenai-message-iframe-container", "iframe", "https://nuera-widget.pages.dev/", 'script', 'gh/maro-okegbero/nueraai-widget-connector');
-    // The above line is where the function is called with specific values.
+			// On mobile, we might want to adjust positioning or margins
+			if (isMobile) {
+				container.style.bottom = '0';
+				container.style.right = '0';
+				container.style.borderRadius = '0';
+			} else {
+				container.style.bottom = '0';
+				container.style.right = '0'; // Keep consistent with closed state
+			}
 
-    // Part 2: Handling Messages from the iframe
+		} else if (action === 'hide' || (action && action.action === 'hide')) {
+			// Reset to launcher size
+			container.style.width = DIMS.CLOSED.w;
+			container.style.height = DIMS.CLOSED.h;
+			container.style.bottom = '0';
+			container.style.right = '0';
+		}
+	});
 
-    // This function listens for messages sent by the iframe.
-    (function (e, o, i, h, s, v, w, x, y) {
+	// 5. Handle Window Resize
+	// If the widget is open and the window resizes (e.g. orientation change), adjust dimensions
+	window.addEventListener('resize', function () {
+		// Check if open by comparing current width to closed width
+		if (container.style.width !== DIMS.CLOSED.w) {
+			var isMobile = window.innerWidth <= 480;
+			container.style.width = isMobile ? DIMS.OPEN_MOBILE.w : DIMS.OPEN_DESKTOP.w;
+			container.style.height = isMobile ? DIMS.OPEN_MOBILE.h : DIMS.OPEN_DESKTOP.h;
+		}
+	});
 
-        // When a message is received, do the following:
-        window.addEventListener(e, function (ev) {
-            // Check if the message came from the expected source (origin).
-            console.log("Received a message:", ev.data);
-            console.log("Message sent from:", ev.origin);
-            if (ev.origin != o) return;
-
-            // Find the box on the webpage using its id.
-            let cbc = document.getElementById(i);
-
-            // Adjust the size of the box based on the content of the message.
-            switch (ev.data) {
-                case h:
-                    cbc.style.height = v;
-                    cbc.style.width = w;
-                    break;
-                case s:
-                    cbc.style.height = x;
-                    cbc.style.width = y;
-            }
-        }, false);
-
-    })("message", "https://nuera-widget.pages.dev/", "edenai-message-iframe-container", "hide", "show", "662px", "333px", "670px", "400px");
-    // The above line is where the function is called with specific values.
-
-});
+})();
